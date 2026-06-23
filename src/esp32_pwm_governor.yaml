@@ -1,0 +1,52 @@
+esphome:
+  name: esp32_pwm_governor
+  esp32:
+    board: esp32dev
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+# Enable fallback hotspot (captive portal) if wifi connection fails
+ap:
+  ssid: "Esp32-Pwm-Governor Fallback Hotspot"
+  password: !secret ap_password
+
+api:
+  password: !secret api_password
+
+ota:
+  password: !secret ota_password
+
+sensor:
+  - platform: ds18b20
+    pin: GPIO4
+    name: "P40 Temperature"
+    id: p40_temp
+    update_interval: 5s
+
+output:
+  - platform: ledc
+    pin: GPIO18
+    frequency: 25000 Hz
+    id: fan_output
+
+# Automation to set fan speed based on temperature
+automation:
+  - trigger:
+      - platform: ds18b20
+        temperature:
+          id: p40_temp
+    then:
+      - lambda: |-
+          float temp = id(p40_temp).state;
+          float output = 0.0;
+          if (temp < 30.0) {
+            output = 0.0; // Fan off
+          } else if (temp > 45.0) {
+            output = 1.0; // Fan full speed
+          } else {
+            // Linear scaling between 30°C and 45°C
+            output = (temp - 30.0) / (45.0 - 30.0);
+          }
+          id(fan_output).set_level(output);
